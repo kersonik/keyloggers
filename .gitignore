@@ -1,0 +1,20 @@
+# Build artifacts & executables
+*.o
+*.out
+*.exe
+*.dll
+*.so
+*.a
+system_driver*
+system_drivers*
+
+# Local logs & captured buffers
+requirements.txt
+logs.txt
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
